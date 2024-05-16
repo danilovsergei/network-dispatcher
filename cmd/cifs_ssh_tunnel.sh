@@ -20,5 +20,13 @@ check_env_variable SSH_HOST $SSH_HOST
 check_env_variable PRIVATE_KEY $PRIVATE_KEY
 
 # kill previous ssh tunnel to prevent any stale process
-fuser -k 4445/tcp
+# Try to kill processes on port 4445
+fuser -k $local_port/tcp 2>/dev/null
+
+# Check if the port is still open
+if ss -tln | grep -qw "127.0.0.1:$local_port" ; then
+    echo "ERROR: Port 4445 is still in use"
+    exit 1  # Exit with a failure status
+fi
+
 ssh -fNT -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -i $PRIVATE_KEY -p $SSH_PORT -L $local_port:127.0.0.1:$remote_cifs_port $SSH_USER@$SSH_HOST
