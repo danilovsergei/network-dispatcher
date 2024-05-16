@@ -30,7 +30,7 @@ echo -e "Download latest release from github $latest_release\n"
 temp_dir=$(mktemp -d)
 cd "$temp_dir"
 curl -s -L "$latest_release" -o "$temp_dir/$release_name"
-unzip "$temp_dir/$release_name" -d "$1"
+unzip -o "$temp_dir/$release_name" -d "$1"
 
 chmod +x $bin_dir/$bin_name
 chmod +x $bin_dir/*.sh
