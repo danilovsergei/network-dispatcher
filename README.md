@@ -25,11 +25,13 @@ and mount the same share through ssh tunnel when everywhere else. \
 * Scripts are using standard mount, umount, fuser, ssh commands to perform operations.
 
 # Install
-* Unpack [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip), for example to $HOME/
-* Edit `ExecStart=` line in `$HOME/network-dispatcher/systemd/network-dispatcher.service` to point to absolute path of the $HOME/network-dispatcher/network-dispatcher binary
-* Copy $HOME/network-dispatcher/systemd/network-dispatcher.service to $HOME/.config/systemd/user
-* Enable systemd service with `systemctl --user enable network-dispatcher`
-* Start systemd service with `systemctl --user start network-dispatcher`
+* Install by executing
+```
+bash -c "$(curl -L https://raw.githubusercontent.com/danilovsergei/network-dispatcher/main/install.sh)" -- "$HOME/bin"
+
+```
+It will download and unpack latest [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip) into `"$HOME/bin"` directory and install network-dispatcher systemd service into `"$HOME/.config/systemd/user/network-dispatcher.service"` \
+Everything runs under current user.
 
 After that network disatcher is ready to react on events. However it's necessary to define config with scripts to react. See the [Usage section](#usage)  for examples
 

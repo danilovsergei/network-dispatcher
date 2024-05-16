@@ -14,3 +14,4 @@ cp -fr systemd $bin_dir/
 
 cd  $project_dir"/bin"
 zip -r $timestamp-release.zip network-dispatcher
+zip -r network-dispatcher.zip network-dispatcher
