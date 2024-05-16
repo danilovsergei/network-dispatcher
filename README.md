@@ -25,7 +25,7 @@ and mount the same share through ssh tunnel when everywhere else. \
 * Scripts are using standard mount, umount, fuser, ssh commands to perform operations.
 
 # Install
-* Unpack [release](https://github.com/danilovsergei/network-dispatcher/releases/download/master/network-dispatcher.zip), for example to $HOME/
+* Unpack [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip), for example to $HOME/
 * Edit `ExecStart=` line in `$HOME/network-dispatcher/systemd/network-dispatcher.service` to point to absolute path of the $HOME/network-dispatcher/network-dispatcher binary
 * Copy $HOME/network-dispatcher/systemd/network-dispatcher.service to $HOME/.config/systemd/user
 * Enable systemd service with `systemctl --user enable network-dispatcher`
@@ -38,7 +38,7 @@ After that network disatcher is ready to react on events. However it's necessary
 To react on events create network-dispatcher config in `$HOME/.config/network-dispatcher/config.json`
 
 Here is example of config which mounts and umounts CIFS network share.
-This config is using scripts provided in [release](https://github.com/danilovsergei/network-dispatcher/releases/download/master/network-dispatcher.zip) and installed into `$HOME/network-dispatcher` 
+This config is using scripts provided in [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip) and installed into `$HOME/network-dispatcher` 
 
 ## Script mounts/umount local CIFS share
 ```
