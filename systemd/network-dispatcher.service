@@ -1,0 +1,10 @@
+[Unit]
+Description=Runs networkdispatcher daemon to trigger scripts on network state change events
+
+[Service]
+Type=simple
+ExecStart=<YOUR_HOME>/bin/network_dispatcher/network-dispatcher
+
+[Install]
+WantedBy=graphical-session.target
+
