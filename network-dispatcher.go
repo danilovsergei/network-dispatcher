@@ -374,8 +374,9 @@ func executeEntityScripts(config *configuration, event Event) {
 		}
 	}
 	for _, entity := range entities {
-		if _, err := os.Stat(entity.Script); err != nil {
-			fmt.Printf("Failed to execute %s. Script does not exist\n", entity.Script)
+		script := os.ExpandEnv(entity.Script)
+		if _, err := os.Stat(script); err != nil {
+			fmt.Printf("Failed to execute %s. Script does not exist\n", script)
 			continue
 		}
 		envVars := make(map[string]string)
@@ -383,11 +384,11 @@ func executeEntityScripts(config *configuration, event Event) {
 		envVars[DISPATCHER_GATEWAY_MACADDRESS] = event.MacAddress
 
 		for key, value := range entity.EnvVariables {
-			envVars[key] = value
+			// allow to have variables like $HOME in EnvVariables values.
+			envVars[key] = os.ExpandEnv(value)
 		}
-
-		log.Println("Execute dispatch script " + entity.Script)
-		execOut := executeScript(entity.Script, envVars)
+		log.Println("Execute dispatch script " + script)
+		execOut := executeScript(script, envVars)
 		if execOut.Err != "" {
 			log.Printf("Failed to execute %s", execOut.ScriptName)
 			logMultilineScriptOutput(execOut.Err, execOut.ScriptName)
