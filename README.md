@@ -22,7 +22,7 @@ and mount the same share through ssh tunnel when everywhere else. \
 * [NetworkManager](https://networkmanager.dev). My network dispatcher listens[NetworkManager](https://networkmanager.dev) low level dbus events
 * [Dbus](https://www.freedesktop.org/wiki/Software/dbus/). See above
 * [Systemd](https://systemd.io/). My network dispatcher provides systemd service to run itself
-* Scripts are using standard mount, umount, fuser, ssh commands to perform operations.
+* Ssh tunnel script relies on console autossh and ssh to maintain tunnel
 
 # Install
 * Install by executing
