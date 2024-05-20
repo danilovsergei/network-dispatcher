@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - Small defails to ssh tunnel section
+- Updated SSH_PORT info in ssh tunnel section
 
 ## [2024-05-19] - 2024-05-20
 
