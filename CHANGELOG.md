@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file.
 - Update changelong workflow
 - Update generate github changelog to comply to nodejs 20
 
-## [05/19/2024] - 2024-05-20
+## [2024-05-19] - 2024-05-20
 
 ### 🚀 Features
 
