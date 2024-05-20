@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 📚 Documentation
+
+- Small defails to ssh tunnel section
+
 ## [2024-05-19] - 2024-05-20
 
 ### 🐛 Bug Fixes
