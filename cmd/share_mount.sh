@@ -23,10 +23,11 @@ else
   # match only whole word match using w to avoid substring matches
   while ! grep -qw $MOUNT_POINT "/etc/mtab"
     do
-        do_log "Mounting attempt for $MOUNT_POINT"
-        mount $MOUNT_POINT
-        sleep 1
-
+        mount_output=$(mount $MOUNT_POINT 2>&1)
+        if [[ $? -ne 0 ]]; then
+          do_log "Retry mount $MOUNT_POINT due to error : $mount_output"
+          sleep 1
+        fi
     done
     do_log "Mounted $MOUNT_POINT"
     exit 0
