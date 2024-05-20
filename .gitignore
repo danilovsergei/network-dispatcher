@@ -2,3 +2,4 @@ bin/
 cmd_test/
 TODO
 config.json
+test_data

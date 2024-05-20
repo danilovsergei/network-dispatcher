@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"network-dispatcher/shell"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -52,14 +51,6 @@ type Event struct {
 	Event      string
 }
 
-type ExecScriptOut struct {
-	ScriptName string
-	Err        string
-	Out        string
-	Combined   string
-	ErrOut     string
-}
-
 // Represents currently connected gateway
 type ConnectedGateway struct {
 	Gateway    string
@@ -92,14 +83,14 @@ func main() {
 	conn.Signal(c)
 	for signal := range c {
 		if signal.Body[0] == "org.freedesktop.NetworkManager.IP4Config" {
-			onIp4ConfigChange(signal)
+			go onIp4ConfigChange(signal)
 		}
 		if signal.Body[0] == "org.freedesktop.NetworkManager.IP6Config" {
-			onIp4ConfigChange(signal)
+			go onIp4ConfigChange(signal)
 		}
 		// Handle only PropertiesChanged for the wireless connection
 		if signal.Body[0] == "org.freedesktop.NetworkManager.Device.Wireless" {
-			onWirelessConfigurationChange(signal, conn)
+			go onWirelessConfigurationChange(signal, conn)
 		}
 	}
 }
@@ -256,43 +247,6 @@ func getGatewayMacAddress(gateway string) (string, error) {
 	return address, nil
 }
 
-func executeScript(command string, envVars map[string]string, args ...string) *ExecScriptOut {
-	cmd := exec.Command(command, args...)
-	cmd.Env = os.Environ()
-
-	for key, value := range envVars {
-		keyvalue := fmt.Sprintf("%s=%s", key, value)
-		cmd.Env = append(cmd.Env, keyvalue)
-	}
-
-	// Set output to Byte Buffers
-	if cmd.Stdout != nil || cmd.Stderr != nil {
-		return &ExecScriptOut{
-			ScriptName: filepath.Base(command),
-			Err:        "Stdout/StdErr already set"}
-	}
-
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
-	cmd.Stderr = &errb
-
-	err := cmd.Run()
-	errString := ""
-	if err != nil {
-		errString = err.Error()
-		// Add more information from error output in case of critical error
-		if errb.String() != "" {
-			errString = errString + "\n" + errb.String()
-		}
-	}
-	return &ExecScriptOut{
-		ScriptName: filepath.Base(command),
-		Out:        outb.String(),
-		ErrOut:     errb.String(),
-		Combined:   outb.String() + "\n" + errb.String(),
-		Err:        errString}
-}
-
 func readConfigurationFile(jsonPath string) (*configuration, error) {
 	content, err := os.ReadFile(jsonPath)
 	// file does not exist is expected behavior and just use empty configuration
@@ -396,8 +350,7 @@ func executeEntityScripts(event Event) {
 			// allow to have variables like $HOME in EnvVariables values.
 			envVars[key] = os.ExpandEnv(value)
 		}
-		log.Println("Execute dispatch script " + script)
-		execOut := executeScript(script, envVars)
+		execOut := shell.ExecuteScript(script, envVars)
 		if execOut.Err != "" {
 			log.Printf("Failed to execute %s", execOut.ScriptName)
 			logMultilineScriptOutput(execOut.Err, execOut.ScriptName)
