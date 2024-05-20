@@ -76,7 +76,7 @@ This config implements ssh tunnel to the local cifs share to make it securely ac
 * `SSH_PORT` - port on external hostname to forward your ssh server local port. Any free port will work. 
 * `SSH_USER` - user to login to your ssh server
 * `SSH_HOST` - your external hostname, I use dynamic DNS provider to get my hostname
-* `PRIVATE_KEY` - private key to login to your ssh server
+* `PRIVATE_KEY` - private key to login to your ssh server\
 This config instructs to mount CIFS network share through SSH tunnel which is created each time WIFI is connected
 
 ```
