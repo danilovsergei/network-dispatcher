@@ -70,8 +70,6 @@ type ConnectedGateway struct {
 var waitingForGateway bool
 
 func main() {
-	config := readConfigurationFile(getConfigFilePath())
-
 	// Mitigate the case when user starts service for the first time
 	//On connect event didn't run yet and there is no macaddress/gateway saved yet
 	saveNetworkStateOnStartup()
@@ -94,14 +92,14 @@ func main() {
 	conn.Signal(c)
 	for signal := range c {
 		if signal.Body[0] == "org.freedesktop.NetworkManager.IP4Config" {
-			onIp4ConfigChange(config, signal)
+			onIp4ConfigChange(signal)
 		}
 		if signal.Body[0] == "org.freedesktop.NetworkManager.IP6Config" {
-			onIp4ConfigChange(config, signal)
+			onIp4ConfigChange(signal)
 		}
 		// Handle only PropertiesChanged for the wireless connection
 		if signal.Body[0] == "org.freedesktop.NetworkManager.Device.Wireless" {
-			onWirelessConfigurationChange(config, signal, conn)
+			onWirelessConfigurationChange(signal, conn)
 		}
 	}
 }
@@ -124,7 +122,7 @@ func saveNetworkStateOnStartup() {
 }
 
 // This event is fired on network changes , including receiving Gateway and IP address
-func onIp4ConfigChange(config *configuration, signal *dbus.Signal) {
+func onIp4ConfigChange(signal *dbus.Signal) {
 	//  We are interested to execute this event only after Wifi connected event happen
 	if !waitingForGateway {
 		return
@@ -161,12 +159,12 @@ func onIp4ConfigChange(config *configuration, signal *dbus.Signal) {
 		}
 		gatewayEntity := ConnectedGateway{Gateway: gateway, MacAddress: macAddress}
 		saveConnectedGateway(getConnectedGatewayFilePath(), &gatewayEntity)
-		executeEntityScripts(config, Event{Gateway: gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
+		executeEntityScripts(Event{Gateway: gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
 	}
 }
 
 // This event is fired on Wifi connect disconnect
-func onWirelessConfigurationChange(config *configuration, signal *dbus.Signal, conn *dbus.Conn) {
+func onWirelessConfigurationChange(signal *dbus.Signal, conn *dbus.Conn) {
 	propertiesMap, isok := signal.Body[1].(map[string]dbus.Variant)
 	if !isok {
 		return
@@ -188,7 +186,7 @@ func onWirelessConfigurationChange(config *configuration, signal *dbus.Signal, c
 		}
 		log.Println("Wifi disconnected")
 		log.Println("Default gateway: " + gatewayEntity.Gateway)
-		executeEntityScripts(config, Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
+		executeEntityScripts(Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
 	}
 }
 
@@ -295,19 +293,23 @@ func executeScript(command string, envVars map[string]string, args ...string) *E
 		Err:        errString}
 }
 
-func readConfigurationFile(jsonPath string) *configuration {
+func readConfigurationFile(jsonPath string) (*configuration, error) {
 	content, err := os.ReadFile(jsonPath)
 	// file does not exist is expected behavior and just use empty configuration
 	config := configuration{}
 	if err == nil {
 		err = json.Unmarshal(content, &config)
 		if err != nil {
-			log.Fatalf("failed to parse config.json: %v", err)
+			log.Fatalf("failed to parse %s: %v", jsonPath, err)
 		}
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Fatalf("failed to parse config.json: %v", err)
+	} else if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("failed to parse config.json: %v", err)
+		} else {
+			return nil, fmt.Errorf("config file not found at %s", jsonPath)
+		}
 	}
-	return &config
+	return &config, nil
 }
 
 func saveConnectedGateway(jsonPath string, gateway *ConnectedGateway) {
@@ -362,8 +364,15 @@ func getConnectedGatewayFilePath() string {
 	return filepath.Join(configDir, ApplicationName, ConnectedGatewayFileName)
 }
 
-func executeEntityScripts(config *configuration, event Event) {
+func executeEntityScripts(event Event) {
 	var entities []Entity
+	config, err := readConfigurationFile(getConfigFilePath())
+	if err != nil {
+		log.Println(err)
+		log.Println("Script execution will be skipped")
+		return
+	}
+
 	for _, entity := range config.Entities {
 		if strings.ToLower(entity.Event) != event.Event {
 			continue
