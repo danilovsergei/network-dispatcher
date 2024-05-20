@@ -136,6 +136,7 @@ func onIp4ConfigChange(signal *dbus.Signal) {
 		gateway := strings.ReplaceAll(gatewayVariant.String(), "\"", "")
 
 		macAddress, err := getGatewayMacAddress(gateway)
+		waitingForGateway = false
 		log.Printf("Gateway: '%s'\n", gateway)
 		log.Printf("Mac address: '%s'\n", macAddress)
 		log.Println("Wifi connected")
@@ -170,6 +171,7 @@ func onWirelessConfigurationChange(signal *dbus.Signal, conn *dbus.Conn) {
 		log.Printf("Access point connected. Waiting for gateway\n")
 		waitingForGateway = true
 	} else {
+		waitingForGateway = false
 		gatewayEntity := getConnectedGateway(getConnectedGatewayFilePath())
 		if gatewayEntity.MacAddress == "" {
 			log.Println("Active gateway is not detected. Please re-connect your network to trigger onConnect event")
