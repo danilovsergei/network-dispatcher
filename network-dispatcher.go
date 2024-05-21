@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -59,8 +60,12 @@ type ConnectedGateway struct {
 
 // True if ActiveEndpoint changes signal received and we need to wait for the assigned gateway
 var waitingForGateway bool
+var configFilePath string
 
 func main() {
+	flag.StringVar(&configFilePath, "config", getConfigFilePath(), "Path to the configuration file")
+	flag.Parse()
+
 	// Mitigate the case when user starts service for the first time
 	//On connect event didn't run yet and there is no macaddress/gateway saved yet
 	saveNetworkStateOnStartup()
@@ -250,6 +255,7 @@ func getGatewayMacAddress(gateway string) (string, error) {
 }
 
 func readConfigurationFile(jsonPath string) (*configuration, error) {
+	fmt.Printf("Read config file from %s\n", jsonPath)
 	content, err := os.ReadFile(jsonPath)
 	// file does not exist is expected behavior and just use empty configuration
 	config := configuration{}
@@ -322,7 +328,7 @@ func getConnectedGatewayFilePath() string {
 
 func executeEntityScripts(event Event) {
 	var entities []Entity
-	config, err := readConfigurationFile(getConfigFilePath())
+	config, err := readConfigurationFile(configFilePath)
 	if err != nil {
 		log.Println(err)
 		log.Println("Script execution will be skipped")
