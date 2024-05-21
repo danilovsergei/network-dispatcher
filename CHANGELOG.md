@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Add --config flag to specify custom config file location
+
 ### 📚 Documentation
 
 - Small defails to ssh tunnel section
