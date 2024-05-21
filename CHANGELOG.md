@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Add --config flag to specify custom config file location
+- Added IncludedMacAddresses and ExcludedMacAddresses config option to define filters
 
 ### 📚 Documentation
 
