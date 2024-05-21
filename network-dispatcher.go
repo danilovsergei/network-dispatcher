@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"network-dispatcher/config"
 	"network-dispatcher/shell"
 	"os"
 	"path/filepath"
@@ -35,27 +36,7 @@ const DISPATCHER_GATEWAY_MACADDRESS = "DISPATCHER_GATEWAY_MACADDRESS"
 // end of supported variables
 
 type configuration struct {
-	Entities []Entity
-}
-
-type Entity struct {
-	MacAddress string `json:"MacAddress,omitempty"`
-	Script     string `json:"Script"`
-	// Supported events: connect, disconnect
-	Event        string            `json:"Event"`
-	EnvVariables map[string]string `json:"EnvVariables,omitempty"`
-}
-
-type Event struct {
-	Gateway    string
-	MacAddress string
-	Event      string
-}
-
-// Represents currently connected gateway
-type ConnectedGateway struct {
-	Gateway    string
-	MacAddress string
+	Entities []config.Entity
 }
 
 // True if ActiveEndpoint changes signal received and we need to wait for the assigned gateway
@@ -107,7 +88,7 @@ func saveNetworkStateOnStartup() {
 		if err != nil {
 			log.Println(err)
 		} else {
-			gatewayEntity := ConnectedGateway{Gateway: startupGateway, MacAddress: macAddress}
+			gatewayEntity := config.ConnectedGateway{Gateway: startupGateway, MacAddress: macAddress}
 			saveConnectedGateway(getConnectedGatewayFilePath(), &gatewayEntity)
 		}
 	} else {
@@ -154,9 +135,9 @@ func onIp4ConfigChange(signal *dbus.Signal) {
 			log.Println(err)
 			return
 		}
-		gatewayEntity := ConnectedGateway{Gateway: gateway, MacAddress: macAddress}
+		gatewayEntity := config.ConnectedGateway{Gateway: gateway, MacAddress: macAddress}
 		saveConnectedGateway(getConnectedGatewayFilePath(), &gatewayEntity)
-		executeEntityScripts(Event{Gateway: gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
+		executeEntityScripts(config.Event{Gateway: gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
 	}
 }
 
@@ -184,7 +165,7 @@ func onWirelessConfigurationChange(signal *dbus.Signal, conn *dbus.Conn) {
 		}
 		log.Println("Wifi disconnected")
 		log.Println("Default gateway: " + gatewayEntity.Gateway)
-		executeEntityScripts(Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
+		executeEntityScripts(config.Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
 	}
 }
 
@@ -274,7 +255,7 @@ func readConfigurationFile(jsonPath string) (*configuration, error) {
 	return &config, nil
 }
 
-func saveConnectedGateway(jsonPath string, gateway *ConnectedGateway) {
+func saveConnectedGateway(jsonPath string, gateway *config.ConnectedGateway) {
 	content, err := json.MarshalIndent(gateway, "", " ")
 	if err != nil {
 		log.Println(err)
@@ -287,9 +268,9 @@ func saveConnectedGateway(jsonPath string, gateway *ConnectedGateway) {
 	}
 }
 
-func getConnectedGateway(jsonPath string) *ConnectedGateway {
+func getConnectedGateway(jsonPath string) *config.ConnectedGateway {
 	content, err := os.ReadFile(jsonPath)
-	gatewayEntity := ConnectedGateway{}
+	gatewayEntity := config.ConnectedGateway{}
 	if err == nil {
 		err = json.Unmarshal(content, &gatewayEntity)
 		if err != nil {
@@ -299,15 +280,6 @@ func getConnectedGateway(jsonPath string) *ConnectedGateway {
 		log.Fatal(err)
 	}
 	return &gatewayEntity
-}
-
-func printJson() {
-	config := configuration{}
-	entityt1 := Entity{MacAddress: "8c:de:f9:21:6c:e4", Script: "/bon/connect", Event: Connected}
-	entityt2 := Entity{MacAddress: "8c:de:f9:21:6c:e4", Script: "/bon/disconnnect", Event: Disconnected}
-	config.Entities = []Entity{entityt1, entityt2}
-	printable, _ := json.Marshal(config)
-	fmt.Println(string(printable))
 }
 
 func getConfigFilePath() string {
@@ -326,8 +298,8 @@ func getConnectedGatewayFilePath() string {
 	return filepath.Join(configDir, ApplicationName, ConnectedGatewayFileName)
 }
 
-func executeEntityScripts(event Event) {
-	var entities []Entity
+func executeEntityScripts(event config.Event) {
+	var entities []config.Entity
 	config, err := readConfigurationFile(configFilePath)
 	if err != nil {
 		log.Println(err)
@@ -339,8 +311,13 @@ func executeEntityScripts(event Event) {
 		if strings.ToLower(entity.Event) != event.Event {
 			continue
 		}
+		// Skip excluded mac addresses
+		if entity.ContainsExcludedMacAddress(event.MacAddress) {
+			continue
+		}
+
 		// empty entity.MacAddress applies script on all networks
-		if entity.MacAddress == "" || entity.MacAddress == event.MacAddress {
+		if !entity.HasIncludedMacAddresses() || entity.ContainsIncludedMacAddress(event.MacAddress) {
 			entities = append(entities, entity)
 		}
 	}
