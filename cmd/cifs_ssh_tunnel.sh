@@ -26,5 +26,7 @@ else
   # start new ssh tunnel if nothing is listening
   AUTOSSH_PORT=0
   AUTOSSH_GATETIME=0
+  # Reduce noise from ssh tunnel errors/restarts etc 
+  AUTOSSH_LOGLEVEL=0
   autossh -fNT -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -i $PRIVATE_KEY -p $SSH_PORT -L $local_port:127.0.0.1:$remote_cifs_port $SSH_USER@$SSH_HOST
 fi
