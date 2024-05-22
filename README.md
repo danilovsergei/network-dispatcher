@@ -220,5 +220,10 @@ This config implements ssh tunnel to the local cifs share to make it securely ac
 
 It requires `autossh` package to correctly manage ssh tunnel errors and restart it
 
+# Troubleshooting
+To view realtime logs from network-dispatcher and all scripts it runs use `journalctl`
+```
+journalctl --user -t "network-dispatcher" -f
+```
 
 
