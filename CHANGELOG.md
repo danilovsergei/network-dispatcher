@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 - Small defails to ssh tunnel section
 - Updated SSH_PORT info in ssh tunnel section
+- Updated readme with filter options and MOUNT_LINK
 
 ### ⚙️ Miscellaneous Tasks
 
