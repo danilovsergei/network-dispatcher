@@ -7,7 +7,7 @@ function check_env_variable() {
     env_var_name=$1
     env_var_value="$2"
     if [ -z "$2" ]; then
-        echo "ERROR: $1 is not defined." >&2
+        do_log "ERROR: $1 is not defined." >&2
         exit 1  # Exit with failure code
     fi
 }
@@ -15,16 +15,16 @@ function check_env_variable() {
 function create_mount_dir_link() {
   mountpoint=$(findmnt -S "$MOUNT_POINT" -n -o TARGET)
   if [ ! -e "$MOUNT_LINK" ]; then
-    echo "Create new $MOUNT_LINK to $mountpoint"
+    do_log "Create new $MOUNT_LINK to $mountpoint"
     ln -s "$mountpoint" "$MOUNT_LINK"
     return
   fi
   if [ -L "$MOUNT_LINK" ]; then
-    echo "Repoint $MOUNT_LINK to $mountpoint"
+    do_log "Repoint $MOUNT_LINK to $mountpoint"
     unlink "$MOUNT_LINK"
     ln -s "$mountpoint" "$MOUNT_LINK"
     else
-      echo "$MOUNT_LINK is regular file or directory. Provide another path"
+      do_log "$MOUNT_LINK is regular file or directory. Provide another path"
   fi
 }
 
@@ -50,7 +50,7 @@ else
     if ! [ -z "${MOUNT_LINK}" ]; then
           create_mount_dir_link
     else
-      echo "Link to mounted folder is not provided. Skipping link creation"
+      do_log "Link to mounted folder is not provided. Skipping link creation"
     fi
     exit 0
 fi
