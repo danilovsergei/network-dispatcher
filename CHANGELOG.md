@@ -8,11 +8,16 @@ All notable changes to this project will be documented in this file.
 
 - Add --config flag to specify custom config file location
 - Added IncludedMacAddresses and ExcludedMacAddresses config option to define filters
+- Share_mount.sh script can create a symbolic link to the mounted folder
 
 ### 📚 Documentation
 
 - Small defails to ssh tunnel section
 - Updated SSH_PORT info in ssh tunnel section
+
+### ⚙️ Miscellaneous Tasks
+
+- Migrate shell scripts to print only to systemd journal
 
 ## [2024-05-19] - 2024-05-20
 
