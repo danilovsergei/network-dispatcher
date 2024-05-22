@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Migrate shell scripts to print only to systemd journal
+- Reduce noice from autossh
 
 ## [2024-05-19] - 2024-05-20
 
