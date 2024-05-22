@@ -12,6 +12,22 @@ function check_env_variable() {
     fi
 }
 
+function create_mount_dir_link() {
+  mountpoint=$(findmnt -S "$MOUNT_POINT" -n -o TARGET)
+  if [ ! -e "$MOUNT_LINK" ]; then
+    echo "Create new $MOUNT_LINK to $mountpoint"
+    ln -s "$mountpoint" "$MOUNT_LINK"
+    return
+  fi
+  if [ -L "$MOUNT_LINK" ]; then
+    echo "Repoint $MOUNT_LINK to $mountpoint"
+    unlink "$MOUNT_LINK"
+    ln -s "$mountpoint" "$MOUNT_LINK"
+    else
+      echo "$MOUNT_LINK is regular file or directory. Provide another path"
+  fi
+}
+
 check_env_variable MOUNT_POINT $MOUNT_POINT
 
 # do_log "Restart cifs tunnel"
@@ -30,6 +46,12 @@ else
         fi
     done
     do_log "Mounted $MOUNT_POINT"
+    # create mount link if MOUNT_LINK is provided
+    if ! [ -z "${MOUNT_LINK}" ]; then
+          create_mount_dir_link
+    else
+      echo "Link to mounted folder is not provided. Skipping link creation"
+    fi
     exit 0
 fi
 
