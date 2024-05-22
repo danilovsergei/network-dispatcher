@@ -3,6 +3,7 @@ Description=Runs networkdispatcher daemon to trigger scripts on network state ch
 
 [Service]
 Type=simple
+SyslogIdentifier=network-dispatcher
 # TODO <bin_dir> must be replaced with real bin directory script installed
 ExecStart=<bin_dir>/network-dispatcher
 

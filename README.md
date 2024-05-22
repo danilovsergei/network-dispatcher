@@ -16,9 +16,9 @@ This project main use case was to mount network share directly when on home netw
 and mount the same share through ssh tunnel when everywhere else. \
 
 * Listens to WIFI connect/disconnect events
-* Provides convenient way to automatically mount network share when at home or remote location
+* Provides convenient way to [automatically mount network share when at home or remote location](#script-mountsumount-local-and-remote-cifs-share-based-on-location).
 * Allows to specify configurable scripts per event. See the [Usage section](#usage) for more details
-* Provides filters by mac address to run scripts in the specific locations.
+* Provides [filters by mac address](#script-mountsumount-local-cifs-share-using-filter) to run scripts in the specific locations.
 * Includes tested scripts to properly mount and umount network shares on connects/disconnects. See the [Usage section](#usage) for more details
 
 
@@ -43,27 +43,27 @@ After that network disatcher is ready to react on events. However it's necessary
 To react on events create network-dispatcher config in `$HOME/.config/network-dispatcher/config.json`
 
 Here is example of config which mounts and umounts CIFS network share.
-This config is using scripts provided in [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip) and installed into `$HOME/network-dispatcher` 
+This config is using scripts provided in [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip) and installed into `$HOME/bin/network-dispatcher` 
 
 ## Script mounts/umount local CIFS share
 It's a basic example how to mount and unmount share.\
 Note that no filters specified which means given scripts will be triggered in ANY wifi network , at home or outside.\
 It's not optimal since mounted local share will hang the system when outside.
 
-See [Script mounts/umount using filter](#cifs-mount-filter)
+See [Script mounts/umount using filter](#script-mountsumount-local-cifs-share-using-filter)
 
 ```
 {
   "Entities": [
     {
-      "Script": "$HOME/network-dispatcher/share_mount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_mount.sh",
       "Event": "connected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage"
       }
     },
     {
-      "Script": "$HOME/network-dispatcher/share_umount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_umount.sh",
       "Event": "disconnected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage"
@@ -79,7 +79,7 @@ See [Script mounts/umount using filter](#cifs-mount-filter)
 ```
 `noauto` parameter is crucial because it instruct systemd that share will be mounted manually by our scripts
 
-<!----><a name="cifs-mount-filter"></a>
+
 ## Script mounts/umount local CIFS share using filter
 Given option provides ability to run the scripts only when connected to certain gateway.\
 Which is typically home router at home. It allows to specify gateway mac address in the `Included_MacAddresses`
@@ -88,7 +88,7 @@ Which is typically home router at home. It allows to specify gateway mac address
 {
   "Entities": [
     {
-      "Script": "$HOME/network-dispatcher/share_mount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_mount.sh",
       "Event": "connected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage"
@@ -98,7 +98,7 @@ Which is typically home router at home. It allows to specify gateway mac address
       ]
     },
     {
-      "Script": "$HOME/network-dispatcher/share_umount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_umount.sh",
       "Event": "disconnected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage"
@@ -109,8 +109,8 @@ Which is typically home router at home. It allows to specify gateway mac address
     }
   ]
 }
-```
 
+```
 There is opposite option called `Excluded_MacAddresses` which skips script execution on specified 
 
 ## Script mounts/umount local and remote CIFS share based on location
@@ -122,7 +122,7 @@ This script is a most common scenario:
 {
   "Entities": [
    {
-      "Script": "$HOME/network-dispatcher/cifs_ssh_tunnel.sh",
+      "Script": "$HOME/bin/network-dispatcher/cifs_ssh_tunnel.sh",
       "Event": "connected",
       "EnvVariables": {
         "SSH_PORT": "2222",
@@ -135,7 +135,7 @@ This script is a most common scenario:
       ]
     },
     {
-      "Script": "$HOME/network-dispatcher/share_mount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_mount.sh",
       "Event": "connected",
       "EnvVariables": {
         "MOUNT_POINT": "//127.0.0.1/Storage",
@@ -146,7 +146,7 @@ This script is a most common scenario:
       ]
     },
     {
-      "Script": "$HOME/network-dispatcher/share_umount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_umount.sh",
       "Event": "disconnected",
       "EnvVariables": {
         "MOUNT_POINT": "//127.0.0.1/Storage"
@@ -156,7 +156,7 @@ This script is a most common scenario:
       ]
     },
         {
-      "Script": "$HOME/network-dispatcher/share_mount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_mount.sh",
       "Event": "connected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage",
@@ -167,7 +167,7 @@ This script is a most common scenario:
       ]
     },
     {
-      "Script": "$HOME/network-dispatcher/share_umount.sh",
+      "Script": "$HOME/bin/network-dispatcher/share_umount.sh",
       "Event": "disconnected",
       "EnvVariables": {
         "MOUNT_POINT": "//192.168.1.1/Storage"
@@ -212,7 +212,9 @@ Provided in the script `"MOUNT_LINK": "$HOME/Storage"` will automatically point 
 `port=4445` is local port to establish the ssh tunnel to the NAS. It's hardcoded in `cifs_ssh_tunnel.sh` 
 
 ### Understanding ssh tunnel options
-This config implements ssh tunnel to the local cifs share to make it securely accessible through internet
+This config implements ssh tunnel to the local cifs share to make it securely accessible through internet.\
+See the `cifs_ssh_tunnel.sh` how its implemented.
+
 * `SSH_PORT` - port on external hostname to forward your ssh server local port. Local 22-> `SSH_PORT` port forwarding rule must be configured on the router to make it work 
 * `SSH_USER` - user to login to your ssh server
 * `SSH_HOST` - your external hostname, I use dynamic DNS provider to get my hostname

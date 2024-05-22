@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 📚 Documentation
+
+- Minor README fixes
+- Update README
+
+### ⚙️ Miscellaneous Tasks
+
+- Add option to run changelog workflow manually
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Change changelog generator to github template
+- Update changelog forkflow
+- Remove all changelog
+
+### Build
+
+- Update changelog format
+- Update changelog format
+
+## [2024-05-21] - 2024-05-22
+
 ### 🚀 Features
 
 - Add --config flag to specify custom config file location
@@ -16,6 +48,7 @@ All notable changes to this project will be documented in this file.
 - Updated SSH_PORT info in ssh tunnel section
 - Updated readme with filter options and MOUNT_LINK
 - Updated readme with troubleshooting
+- Removed old readme
 
 ### ⚙️ Miscellaneous Tasks
 

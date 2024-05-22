@@ -4,6 +4,7 @@ on:
   push:  
     branches:
       - main
+  workflow_dispatch:
 jobs: 
   build: 
     runs-on: ubuntu-latest  
@@ -15,7 +16,7 @@ jobs:
     - name: Generate a changelog
       uses: orhun/git-cliff-action@v3
       with:
-        config: cliff.toml
+        config: .github/workflows/cliff.toml
         args: --verbose
       env:
         OUTPUT: CHANGELOG.md 
