@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🐛 Bug Fixes
+
+- Fix error message in the log about umount is not able to find umount process pid to kill
+
 ### ⚙️ Miscellaneous Tasks
 
 - Generate automated changelog using git-cliff
