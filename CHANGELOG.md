@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### ⚙️ Miscellaneous Tasks
+
+- Generate automated changelog using git-cliff
+
+## 2024-05-21
+
 ### 🚀 Features
 
 - Add --config flag to specify custom config file location
@@ -21,8 +27,6 @@ All notable changes to this project will be documented in this file.
 
 - Migrate shell scripts to print only to systemd journal
 - Reduce noice from autossh
-- Generate automated changelog using git-cliff
-- Refresh changelog
 
 ## 2024-05-19
 
