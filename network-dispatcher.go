@@ -6,8 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"network-dispatcher/config"
+	dbusapi "network-dispatcher/dbus_api"
+	"network-dispatcher/netlink_api"
 	"network-dispatcher/shell"
 	"os"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/vishvananda/netlink"
 )
 
 // based on the https://gist.github.com/mkol5222/d6bb9660ee369a040ea59370c391322e
@@ -39,200 +39,165 @@ type configuration struct {
 	Entities []config.Entity
 }
 
-// True if ActiveEndpoint changes signal received and we need to wait for the assigned gateway
-var waitingForGateway bool
 var configFilePath string
 
 func main() {
 	flag.StringVar(&configFilePath, "config", getConfigFilePath(), "Path to the configuration file")
 	flag.Parse()
 
+	// Make sure there are no leftovers of of the saved old gateway
+	deleteGatewayFilePathIfPresent()
+
 	// Mitigate the case when user starts service for the first time
 	//On connect event didn't run yet and there is no macaddress/gateway saved yet
 	saveNetworkStateOnStartup()
 
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to connect to session bus:", err)
-		os.Exit(1)
-	}
-
-	call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0,
-		"type='signal',interface='org.freedesktop.DBus.Properties',sender='org.freedesktop.NetworkManager',member='PropertiesChanged'")
-
-	log.Printf("\n The call object is \n %#v \n", call)
-	if call.Err != nil {
-		log.Printf("\n Dbus connection error: %s \n", call.Err)
-	}
-
-	c := make(chan *dbus.Signal, 10)
-	conn.Signal(c)
-	for signal := range c {
-		if signal.Body[0] == "org.freedesktop.NetworkManager.IP4Config" {
-			go onIp4ConfigChange(signal)
-		}
-		if signal.Body[0] == "org.freedesktop.NetworkManager.IP6Config" {
-			go onIp4ConfigChange(signal)
-		}
-		// Handle only PropertiesChanged for the wireless connection
-		if signal.Body[0] == "org.freedesktop.NetworkManager.Device.Wireless" {
-			go onWirelessConfigurationChange(signal, conn)
-		}
-	}
+	dbusapi.MonitorNetworkCardStateChanged(
+		onConnected,
+		onDisconnected)
 }
 
-func saveNetworkStateOnStartup() {
-	startupGateway, err := parseDefaultGateway()
-	if startupGateway != "" {
-		macAddress, err := getGatewayMacAddress(startupGateway)
+func onConnected(signal *dbus.Signal) {
+	fmt.Println("Dbus network connected event")
+	gateway, err := getGatewayFromDbus(signal)
+	if err != nil {
+		log.Printf("Failed to receive gateway on wifi connected: %s\n", gateway)
+		return
+	}
+	gatewayEntity, err := getGatewayEntity(gateway)
+	if err != nil {
+		log.Printf("Failed to create gateway entity: %v\n", err)
+		return
+	}
+	log.Println(gatewayEntity)
+	log.Println("Wifi connected")
+
+	saveLastConnectedGatewayToConfig(getConnectedGatewayFilePath(), gatewayEntity)
+	executeEntityScripts(config.Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
+
+}
+
+func getGatewayFromDbus(signal *dbus.Signal) (string, error) {
+	getGateway := func() (string, error) {
+		netCard := dbusapi.NewNetworkAdapter(signal.Path)
+		//ip4
+		ip4, err := netCard.Ip4Config()
 		if err != nil {
-			log.Println(err)
-		} else {
-			gatewayEntity := config.ConnectedGateway{Gateway: startupGateway, MacAddress: macAddress}
-			saveConnectedGateway(getConnectedGatewayFilePath(), &gatewayEntity)
+			return "", fmt.Errorf("failed to get Ip4Config from dbus: %v", err)
 		}
-	} else {
-		// Just do nothing when machine is offline and there is no gateway
-		// In that case gateway will be updated on first onConnect event
-		log.Println(err)
-	}
-}
-
-// This event is fired on network changes , including receiving Gateway and IP address
-func onIp4ConfigChange(signal *dbus.Signal) {
-	//  We are interested to execute this event only after Wifi connected event happen
-	if !waitingForGateway {
-		return
-	}
-	propMap, isok := signal.Body[1].(map[string]dbus.Variant)
-	if !isok {
-		return
-	}
-	addressData, keyExists := propMap["AddressData"]
-	if !keyExists {
-		return
-	}
-	addresses, _ := addressData.Value().([]map[string]dbus.Variant)
-	if len(addresses) > 0 {
-		gatewayVariant, keyExists := propMap["Gateway"]
-		// ignoring not relevant events which do not contain gateway
-		if !keyExists {
-			return
-		}
-		gateway := strings.ReplaceAll(gatewayVariant.String(), "\"", "")
-
-		macAddress, err := getGatewayMacAddress(gateway)
-		waitingForGateway = false
-		log.Printf("Gateway: '%s'\n", gateway)
-		log.Printf("Mac address: '%s'\n", macAddress)
-		log.Println("Wifi connected")
-
-		// IP addressed not used anywhere yet.
-		// addressVariant := addresses[0]["address"]
-		// ipAddress := strings.ReplaceAll(addressVariant.String(), "\"", "")
-
+		gateway, err := ip4.Gateway()
 		if err != nil {
-			log.Println(err)
-			return
+			return "", fmt.Errorf("failed to get Ip4 gateway from dbus: %v", err)
 		}
-		gatewayEntity := config.ConnectedGateway{Gateway: gateway, MacAddress: macAddress}
-		saveConnectedGateway(getConnectedGatewayFilePath(), &gatewayEntity)
-		executeEntityScripts(config.Event{Gateway: gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
-	}
-}
 
-// This event is fired on Wifi connect disconnect
-func onWirelessConfigurationChange(signal *dbus.Signal, conn *dbus.Conn) {
-	propertiesMap, isok := signal.Body[1].(map[string]dbus.Variant)
-	if !isok {
-		return
-	}
-	pointPath, ok := propertiesMap["ActiveAccessPoint"]
-	// Avoid not relevant keys such as AccessPoints or LastScan objects
-	if !ok {
-		return
-	}
-
-	if isAccessPointConnected(&pointPath, conn) {
-		log.Printf("Access point connected. Waiting for gateway\n")
-		waitingForGateway = true
-	} else {
-		waitingForGateway = false
-		gatewayEntity := getConnectedGateway(getConnectedGatewayFilePath())
-		if gatewayEntity.MacAddress == "" {
-			log.Println("Active gateway is not detected. Please re-connect your network to trigger onConnect event")
-			return
+		if gateway != "" {
+			return gateway, nil
 		}
-		log.Println("Wifi disconnected")
-		log.Println("Default gateway: " + gatewayEntity.Gateway)
-		executeEntityScripts(config.Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
-	}
-}
-
-func isAccessPointConnected(accessPointPath *dbus.Variant, conn *dbus.Conn) bool {
-	activeobj := conn.Object("org.freedesktop.NetworkManager", accessPointPath.Value().(dbus.ObjectPath))
-	_, err := activeobj.GetProperty("org.freedesktop.NetworkManager.AccessPoint.Ssid")
-
-	if err != nil {
-		return false
-	} else {
-		return true
-		// fmt.Printf("\nAP Name = %s", name.Value().([]byte))
-	}
-}
-
-func parseDefaultGateway() (string, error) {
-	routes, err := netlink.RouteList(nil, netlink.FAMILY_ALL)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse default gateway: %v", err)
-	}
-	for _, route := range routes {
-		// equivalent to ip route show default
-		if route.Dst == nil || route.Dst.String() == "0.0.0.0/0" || route.Dst.String() == "::/0" {
-			if route.Gw.To4() == nil {
-				return "", errors.New("failed to get default gateway IP , it's empty")
-			}
-			return route.Gw.To4().String(), nil
+		//ip6
+		ip6, err := netCard.Ip6Config()
+		if err != nil {
+			return "", fmt.Errorf("failed to get Ip6Config from dbus: %v", err)
 		}
-	}
-	return "", errors.New("failed to find default gateway in the routes table")
-}
-
-func parseGatewayMacAddress(gateway string) (string, error) {
-	filterIP := net.ParseIP(gateway) // IP to filter for
-
-	// equivalent to ip neigh show <gateway_ip_address>
-	neighbors, err := netlink.NeighList(0, netlink.FAMILY_ALL)
-	if err != nil {
-		return "", err
-	}
-	for _, neighbor := range neighbors {
-		if neighbor.IP.Equal(filterIP) {
-			return neighbor.HardwareAddr.String(), nil
+		gateway, err = ip6.Gateway()
+		if err != nil {
+			return "", fmt.Errorf("failed to get Ip6 gateway from dbus: %v", err)
 		}
+		if gateway != "" {
+			return gateway, nil
+		}
+		return "", errors.New("both IP4 and IP6 gateways are empty")
 	}
-	return "", fmt.Errorf("failed to find mac address for %s", gateway)
+	return getGatewayFromDbusWithRetries(getGateway)
 }
 
-func getGatewayMacAddress(gateway string) (string, error) {
+func getGatewayFromDbusWithRetries(gatewayFunc func() (string, error)) (string, error) {
 	retries := 1
+	// it's 5 seconds
 	retries_count := 50
 	var err error
-	var address string
-	// Mac address is empty right after gateway ip address received
-	// Need to wait for it to appear
+	var gateway string
+
 	for retries <= retries_count {
-		address, err = parseGatewayMacAddress(gateway)
-		if err == nil {
-			break
+		gateway, err = gatewayFunc()
+		if err != nil {
+			continue
+		}
+		if gateway != "" {
+			fmt.Printf("Received dbus gateway %s from %d attempt\n", gateway, retries)
+			return gateway, nil
 		}
 		time.Sleep(100 * time.Millisecond)
 		retries++
 	}
-	if address == "" {
-		return "", err
+	return "", fmt.Errorf("%v in %d attempts: %v", err, retries_count, err)
+}
+
+func onDisconnected(signal *dbus.Signal) {
+	fmt.Println("Dbus network disconnected event")
+	gatewayEntity := getLastConnectedGatewayFromConfig(getConnectedGatewayFilePath())
+	log.Println("Wifi disconnected")
+	if gatewayEntity.MacAddress == "" {
+		log.Printf("Last active gateway macaddress is not detected %v. Gateway specific disconnect events will not run\n", gatewayEntity)
+	} else {
+		log.Println(gatewayEntity)
+		executeEntityScripts(config.Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Disconnected})
 	}
-	return address, nil
+	// cleanup gateway config file to avoid stale gateway information
+	deleteGatewayFilePathIfPresent()
+}
+
+func deleteGatewayFilePathIfPresent() {
+	gwPath := getConnectedGatewayFilePath()
+	if _, err := os.Stat(gwPath); err == nil {
+		err := os.Remove(gwPath)
+		if err != nil {
+			fmt.Printf("Error deleting gateway config file '%s': %v\n", gwPath, err)
+		} else {
+			log.Println("Gateway config file deleted")
+		}
+	} else if !os.IsNotExist(err) {
+		fmt.Printf("Error checking file stat'%s': %v\n", gwPath, err)
+	}
+}
+
+func saveNetworkStateOnStartup() {
+	startupGateway, err := netlink_api.ParseDefaultGateway()
+	if err != nil {
+		fmt.Printf("Failed to receive gateway on startup. Gateway dependant scripts will not run: %v\n", err)
+		return
+	}
+	if startupGateway == "" {
+		fmt.Println("Failed to receive gateway on startup. Gateway dependant scripts will not run")
+		return
+	}
+
+	macAddress, err := netlink_api.GetGatewayMacAddress(startupGateway)
+	if err != nil {
+		log.Printf("Failed to receive gateway %s macaddress on startup. Gateway dependant scripts will not run: %v\n", startupGateway, err)
+		return
+	}
+	if macAddress == "" {
+		fmt.Printf("Failed to receive gateway %s macaddress on startup. Gateway dependant scripts will not run\n", startupGateway)
+		return
+	}
+	gatewayEntity := config.ConnectedGateway{Gateway: startupGateway, MacAddress: macAddress}
+	fmt.Printf("Found gateway on startup: %s\n", gatewayEntity)
+	saveLastConnectedGatewayToConfig(getConnectedGatewayFilePath(), &gatewayEntity)
+}
+
+// Parses gateway from dbus event and fetches macaddress for it using netlink
+func getGatewayEntity(gateway string) (*config.ConnectedGateway, error) {
+	if gateway == "" {
+		return nil, errors.New("failed to parse gateway from dbus: it's empty")
+	}
+	macAddress, err := netlink_api.GetGatewayMacAddress(gateway)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse macaddress for gateway %s from dbus: %v", gateway, err)
+	}
+	if macAddress == "" {
+		return nil, fmt.Errorf("failed to parse macaddress for gateway %s from dbus: it's empty", gateway)
+	}
+	return &config.ConnectedGateway{Gateway: gateway, MacAddress: macAddress}, nil
 }
 
 func readConfigurationFile(jsonPath string) (*configuration, error) {
@@ -255,7 +220,7 @@ func readConfigurationFile(jsonPath string) (*configuration, error) {
 	return &config, nil
 }
 
-func saveConnectedGateway(jsonPath string, gateway *config.ConnectedGateway) {
+func saveLastConnectedGatewayToConfig(jsonPath string, gateway *config.ConnectedGateway) {
 	content, err := json.MarshalIndent(gateway, "", " ")
 	if err != nil {
 		log.Println(err)
@@ -268,7 +233,7 @@ func saveConnectedGateway(jsonPath string, gateway *config.ConnectedGateway) {
 	}
 }
 
-func getConnectedGateway(jsonPath string) *config.ConnectedGateway {
+func getLastConnectedGatewayFromConfig(jsonPath string) *config.ConnectedGateway {
 	content, err := os.ReadFile(jsonPath)
 	gatewayEntity := config.ConnectedGateway{}
 	if err == nil {

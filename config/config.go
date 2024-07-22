@@ -1,6 +1,9 @@
 package config
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+)
 
 type Entity struct {
 	IncludedMacAddresses []string `json:"Included_MacAddresses,omitempty"`
@@ -37,4 +40,8 @@ func (e *Entity) ContainsIncludedMacAddress(address string) bool {
 
 func (e *Entity) ContainsExcludedMacAddress(address string) bool {
 	return slices.Contains(e.ExcludedMacAddresses, address)
+}
+
+func (cg ConnectedGateway) String() string {
+	return fmt.Sprintf("Gateway: %s    MacAddress: %s", cg.Gateway, cg.MacAddress)
 }
