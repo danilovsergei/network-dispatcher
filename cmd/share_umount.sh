@@ -36,9 +36,7 @@ if grep -qw $MOUNT_POINT /etc/mtab; then
     # For some reason umount -l command process could stuck and block script exit.
     # Despite that it umounts storage successfully.
     # Kiling using command from the guide https://copyprogramming.com/howto/killing-background-processes-when-script-exists-duplicate
-    if [[ -n "${umount_pid}" ]]; then
-      kill -- -${umount_pid}  || true
-    fi
+    kill -- ${umount_pid} 2>/dev/null
 
 else
   do_log  "$MOUNT_POINT absent in mtab. Do nothing";
