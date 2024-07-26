@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Fix error message in the log about umount is not able to find umount process pid to kill
 - Make establishing cifs ssh tunnel more reliable
+- Fixed error message on killing umount process group if it still exists after successful amount
 
 ### ⚙️ Miscellaneous Tasks
 
