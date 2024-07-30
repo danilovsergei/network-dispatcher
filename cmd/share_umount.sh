@@ -13,6 +13,25 @@ function check_env_variable() {
     fi
 }
 
+function kill_pid() {
+pid="$1"
+if [ "$pid" -gt 0 ]; then
+  if ps -p "$pid" > /dev/null; then
+    kill -- "$pid" 2>/dev/null
+    do_log "Umount process $pid killed after share umounted"
+  else
+    do_log "Umount process $pid sucessfully finished"
+  fi
+elif [ "$pid" -lt 0 ]; then
+  if ps -o pgid= | grep -q "^ ${$pid/-}$"; then
+    kill -- "-$pid" 2>/dev/null
+    do_log "Umount process $pid killed after share umounted"
+  else
+    do_log "Umount process $pid sucessfully finished"
+  fi
+fi
+}
+
 check_env_variable MOUNT_POINT $MOUNT_POINT
 
 # match only whole word match using w to avoid substring matches
@@ -22,7 +41,7 @@ if grep -qw $MOUNT_POINT /etc/mtab; then
   # use mount source to get mount destination for umount command
   mount_dest=$(awk -v mount_point="$MOUNT_POINT" '$1 == mount_point {print $2}' /etc/mtab)
   check_env_variable mount_dest $mount_dest
-
+  # don't care about returned error code since check shared umounted directly
   umount -l $mount_dest &
   umount_pid=$!
   
@@ -35,9 +54,8 @@ if grep -qw $MOUNT_POINT /etc/mtab; then
     do_log "umounted $MOUNT_POINT"
     # For some reason umount -l command process could stuck and block script exit.
     # Despite that it umounts storage successfully.
-    # Kiling using command from the guide https://copyprogramming.com/howto/killing-background-processes-when-script-exists-duplicate
-    kill -- ${umount_pid} 2>/dev/null
-
+    kill_pid ${umount_pid}
+    exit 0
 else
   do_log  "$MOUNT_POINT absent in mtab. Do nothing";
 fi
