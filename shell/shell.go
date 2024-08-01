@@ -116,10 +116,6 @@ func ExecuteScript(command string, envVars map[string]string, args ...string) *E
 			if err != nil {
 				errString = err.Error()
 			}
-			// Add more information from error output in case of critical error
-			if errb.String() != "" {
-				errString = errString + "\n" + errb.String()
-			}
 			return &ExecScriptOut{
 				ScriptName: filepath.Base(command),
 				Out:        outb.String(),
