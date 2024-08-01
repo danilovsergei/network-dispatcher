@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Make establishing cifs ssh tunnel more reliable
 - Fixed error message on killing umount process group if it still exists after successful amount
 - Kill umount process only if it exists with checks for both process pid and group pid
+- Avoid failing shell script on non empty error output
 
 ### ⚙️ Miscellaneous Tasks
 
