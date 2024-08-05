@@ -10,8 +10,9 @@ type Entity struct {
 	ExcludedMacAddresses []string `json:"Excluded_MacAddresses,omitempty"`
 	Script               string   `json:"Script"`
 	// Supported events: connect, disconnect
-	Event        string            `json:"Event"`
-	EnvVariables map[string]string `json:"EnvVariables,omitempty"`
+	Event          string            `json:"Event"`
+	EnvVariables   map[string]string `json:"EnvVariables,omitempty"`
+	ContinueOnFail bool              `json:"ContinueOnFail,omitempty"`
 }
 
 type Event struct {

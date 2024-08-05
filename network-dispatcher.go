@@ -304,9 +304,14 @@ func executeEntityScripts(event config.Event) {
 		if execOut.Err != "" {
 			log.Printf("Failed to execute %s", execOut.ScriptName)
 			logMultilineScriptOutput(
-				execOut.Err+"\n"+execOut.ErrOut,
+				execOut.Err+"\n"+execOut.Combined,
 				execOut.ScriptName)
-			continue
+			if entity.ContinueOnFail {
+				continue
+			} else {
+				return
+			}
+
 		}
 		logMultilineScriptOutput(execOut.Combined, execOut.ScriptName)
 	}

@@ -15,7 +15,7 @@ and remotely via ssh tunnel
 This project main use case was to mount network share directly when on home network \
 and mount the same share through ssh tunnel when everywhere else. \
 
-* Listens to WIFI connect/disconnect events
+* Listens to WIFI and Ethernet connect/disconnect events
 * Provides convenient way to [automatically mount network share when at home or remote location](#script-mountsumount-local-and-remote-cifs-share-based-on-location).
 * Allows to specify configurable scripts per event. See the [Usage section](#usage) for more details
 * Provides [filters by mac address](#script-mountsumount-local-cifs-share-using-filter) to run scripts in the specific locations.
@@ -44,6 +44,16 @@ To react on events create network-dispatcher config in `$HOME/.config/network-di
 
 Here is example of config which mounts and umounts CIFS network share.
 This config is using scripts provided in [release](https://github.com/danilovsergei/network-dispatcher/releases/latest/download/network-dispatcher.zip) and installed into `$HOME/bin/network-dispatcher` 
+
+## Available entity parameters
+Config consists of list of entities. Here are all available entity parameters:
+
+* `IncludedMacAddresses`: script will be executed only for networks which have a gateways with given macaddresses
+* `ExcludedMacAddresses`: script will be skipped for networks which have a gateways with given macaddresses
+* `Script`: path to the script to execute. Supports sh environment variables such as $HOME
+* `Event`: network event script will be triggered. Supported events are `connected`, `disconnected`
+* `EnvVariables`: Allows to configure a script execution with key/value environment variables. See [Script mounts/umount local CIFS share example](#script-mountsumount-local-cifs-share)
+* `ContinueOnFail`: Scripts are executed in order specified in the entities list.If `ContinueOnFail` true next scripts will still be executed even if current script failed. Default value if `false`
 
 ## Script mounts/umount local CIFS share
 It's a basic example how to mount and unmount share.\
