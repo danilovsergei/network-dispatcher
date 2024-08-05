@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Do not continue other scripts execution if ContinueOnFail is false
+
 ## 2024-08-01
 
 ### 🚀 Features
