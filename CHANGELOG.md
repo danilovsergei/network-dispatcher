@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - Do not continue other scripts execution if ContinueOnFail is false
 - Expose local cifs port to be configurable
 
+### 📚 Documentation
+
+- Add default cifs port to the cifs tunnel example
+
 ### ⚙️ Miscellaneous Tasks
 
 - Update gitcliff to v4
