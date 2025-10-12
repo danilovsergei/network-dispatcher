@@ -136,6 +136,7 @@ This script is a most common scenario:
       "Event": "connected",
       "EnvVariables": {
         "SSH_PORT": "2222",
+        "LOCAL_CIFS_PORT": "445",
         "SSH_USER": "homeuser",
         "SSH_HOST": "my-external-address.dyndns.com",
         "PRIVATE_KEY": "$HOME/.ssh/cifs_id_rsa"
