@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Fix the  100% cpu usage error
+
+## 2025-10-12
+
+### 🚀 Features
+
 - Do not continue other scripts execution if ContinueOnFail is false
 - Expose local cifs port to be configurable
 
