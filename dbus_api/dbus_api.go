@@ -20,10 +20,12 @@ type NetworkAdapter struct {
 
 type Ip4Config struct {
 	object dbus.BusObject
+	Path   dbus.ObjectPath
 }
 
 type Ip6Config struct {
 	object dbus.BusObject
+	Path   dbus.ObjectPath
 }
 
 func MonitorNetworkCardStateChanged(onConnected func(*dbus.Signal), onDisconnected func(*dbus.Signal)) {
@@ -64,29 +66,33 @@ func NewNetworkAdapter(path dbus.ObjectPath) *NetworkAdapter {
 }
 
 func (n *NetworkAdapter) Ip4Config() (*Ip4Config, error) {
-	ip4Config, err := n.object.GetProperty("org.freedesktop.NetworkManager.Device.Ip4Config")
+	var path dbus.ObjectPath
+	err := n.object.Call("org.freedesktop.DBus.Properties.Get", 0,
+		"org.freedesktop.NetworkManager.Device", "Ip4Config").Store(&path)
 
 	if err != nil {
 		return nil, err
 	}
-	return newIp4Config(ip4Config.Value().(dbus.ObjectPath)), nil
+	return newIp4Config(path), nil
 }
 
 func (n *NetworkAdapter) Ip6Config() (*Ip6Config, error) {
-	ip6Config, err := n.object.GetProperty("org.freedesktop.NetworkManager.Device.Ip6Config")
+	var path dbus.ObjectPath
+	err := n.object.Call("org.freedesktop.DBus.Properties.Get", 0,
+		"org.freedesktop.NetworkManager.Device", "Ip6Config").Store(&path)
 
 	if err != nil {
 		return nil, err
 	}
-	return newIp6Config(ip6Config.Value().(dbus.ObjectPath)), nil
+	return newIp6Config(path), nil
 }
 
 func newIp4Config(path dbus.ObjectPath) *Ip4Config {
-	return &Ip4Config{object: conn.Object("org.freedesktop.NetworkManager", path)}
+	return &Ip4Config{object: conn.Object("org.freedesktop.NetworkManager", path), Path: path}
 }
 
 func newIp6Config(path dbus.ObjectPath) *Ip6Config {
-	return &Ip6Config{object: conn.Object("org.freedesktop.NetworkManager", path)}
+	return &Ip6Config{object: conn.Object("org.freedesktop.NetworkManager", path), Path: path}
 }
 
 func (c *Ip4Config) Gateway() (string, error) {

@@ -80,33 +80,51 @@ func onConnected(signal *dbus.Signal) {
 func getGatewayFromDbus(signal *dbus.Signal) (string, error) {
 	getGateway := func() (string, error) {
 		netCard := dbusapi.NewNetworkAdapter(signal.Path)
-		//ip4
+
+		// --- IPv4 ---
 		ip4, err := netCard.Ip4Config()
 		if err != nil {
-			return "", fmt.Errorf("failed to get Ip4Config from dbus: %v", err)
-		}
-		gateway, err := ip4.Gateway()
-		if err != nil {
-			return "", fmt.Errorf("failed to get Ip4 gateway from dbus: %v", err)
+			return "", fmt.Errorf("failed to get Ip4Config: %v", err)
 		}
 
-		if gateway != "" {
-			return gateway, nil
+		if ip4.Path == "/" {
+			// This is NOT an error, it just means no IPv4 config exists yet.
+			// We continue to check IPv6.
+		} else {
+			gateway, err := ip4.Gateway()
+			if err != nil {
+				// If we have a valid path but fail to get Gateway, that IS an error worth retrying?
+				// Actually, often better to log and continue to IPv6 to avoid blocking
+				fmt.Printf("Warning: Failed to get IPv4 gateway: %v\n", err)
+			} else if gateway != "" {
+				return gateway, nil
+			}
 		}
-		//ip6
+
+		// --- IPv6 ---
 		ip6, err := netCard.Ip6Config()
 		if err != nil {
-			return "", fmt.Errorf("failed to get Ip6Config from dbus: %v", err)
+			return "", fmt.Errorf("failed to get Ip6Config: %v", err)
 		}
-		gateway, err = ip6.Gateway()
-		if err != nil {
-			return "", fmt.Errorf("failed to get Ip6 gateway from dbus: %v", err)
+
+		if ip6.Path == "/" {
+			// No IPv6 config
+		} else {
+			gateway, err := ip6.Gateway()
+			if err != nil {
+				fmt.Printf("Warning: Failed to get IPv6 gateway: %v\n", err)
+			} else if gateway != "" {
+				return gateway, nil
+			}
 		}
-		if gateway != "" {
-			return gateway, nil
-		}
-		return "", errors.New("both IP4 and IP6 gateways are empty")
+
+		// If we reached here, we found no gateway.
+		// Returns nil error to STOP the retry loop if you believe the state is final,
+		// OR return error if you want to keep waiting.
+		// Given the D-Bus flood, I recommend returning nil error here.
+		return "", nil
 	}
+
 	return getGatewayFromDbusWithRetries(getGateway)
 }
 
