@@ -36,12 +36,13 @@ check_env_variable MOUNT_POINT $MOUNT_POINT
 if grep -qw $MOUNT_POINT /etc/mtab; then
   do_log "mtab contains $MOUNT_POINT. Already mounted. Do nothing";
 else
+  mount_dir=$(findmnt --fstab -S "$MOUNT_POINT" -n -o TARGET)
   # match only whole word match using w to avoid substring matches
   while ! grep -qw $MOUNT_POINT "/etc/mtab"
     do
-        mount_output=$(mount $MOUNT_POINT 2>&1)
+        mount_output=$(mount $mount_dir 2>&1)
         if [[ $? -ne 0 ]]; then
-          do_log "Retry mount $MOUNT_POINT due to error : $mount_output"
+          do_log "Retry mount $mount_dir due to error : $mount_output"
           sleep 1
         fi
     done
