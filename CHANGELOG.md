@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Fix the  100% cpu usage error
+- Use local dir name instead of cifs share name to allow mount as user
 
 ## 2025-10-12
 
