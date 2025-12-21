@@ -29,6 +29,10 @@ and mount the same share through ssh tunnel when everywhere else. \
 * Ssh tunnel script relies on console autossh and ssh to maintain tunnel
 
 # Install
+**Note**: installation will run sudo command to copy systemd service into /etc/systemd/system dir and start it.\
+That's only the time root is required to network-dispatcher.
+Service itself runs under your current user.
+
 * Install by executing
 ```
 bash -c "$(curl -L https://raw.githubusercontent.com/danilovsergei/network-dispatcher/main/install.sh)" -- "$HOME/bin"
