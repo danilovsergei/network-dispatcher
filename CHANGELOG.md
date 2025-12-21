@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 
 - Fix the  100% cpu usage error
 - Use local dir name instead of cifs share name to allow mount as user
+- Run network-dispatcher service before NetworkManager to catch onConnected events during boot
+
+### 🐛 Bug Fixes
+
+- Fix gateway not found error from previous retries printing in the end when gateway was already found
 
 ## 2025-10-12
 
