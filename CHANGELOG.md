@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Update install.sh script to install systemd service into the /etc/systemd/system
+
+## 2025-12-20
+
+### 🚀 Features
+
 - Fix the  100% cpu usage error
 - Use local dir name instead of cifs share name to allow mount as user
 - Run network-dispatcher service before NetworkManager to catch onConnected events during boot
