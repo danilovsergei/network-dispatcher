@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - Update install.sh script to install systemd service into the /etc/systemd/system
 
+### 📚 Documentation
+
+- Update Install instructions at readme
+
 ## 2025-12-20
 
 ### 🚀 Features
