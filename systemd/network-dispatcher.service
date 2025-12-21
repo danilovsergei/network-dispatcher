@@ -1,12 +1,16 @@
 [Unit]
 Description=Runs networkdispatcher daemon to trigger scripts on network state change events
+# need to run it earlier to make sure to catch first onConnected event after boot
+#
+# script also must be run as system script from /etc/systemd/system dir.
+# but could be still started as user
+Before=NetworkManager.service
 
 [Service]
 Type=simple
+User=<username>
 SyslogIdentifier=network-dispatcher
-# TODO <bin_dir> must be replaced with real bin directory script installed
 ExecStart=<bin_dir>/network-dispatcher
 
 [Install]
-WantedBy=graphical-session.target
-
+WantedBy=multi-user.target

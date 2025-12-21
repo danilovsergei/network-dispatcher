@@ -39,6 +39,9 @@ chmod +x $bin_dir/*.sh
 echo -e "Replace <bin_dir> with $bin_dir in $service_file_path\n"  
 sed -i "s|=<bin_dir>|=$bin_dir|g" $service_file_path
 
+echo -e "Replace <username> with $USER in $service_file_path\n"
+sed -i "s|<username>|$USER|g" $service_file_path
+
 if ! ( grep -q "$bin_dir/$bin_name" "$service_file_path" ); then
   echo "Failed to replace ExecStart in $service_file_path to $bin_dir/$bin_name"
 fi
