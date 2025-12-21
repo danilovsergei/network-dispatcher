@@ -13,7 +13,7 @@ import (
 
 // Gets gateway through netlink
 func GetGatewayFromTheSystem() *config.ConnectedGateway {
-	gateway, err := ParseDefaultGateway()
+	gateway, _, err := ParseDefaultGateway()
 	if err != nil {
 		log.Printf("Error while  parseDefaultGateway using netlink : %v\n", err)
 		return nil
@@ -37,30 +37,38 @@ func GetGatewayFromTheSystem() *config.ConnectedGateway {
 }
 
 // parseDefaultGateway gets gateway using go binding for ip route show command
-func ParseDefaultGateway() (string, error) {
+func ParseDefaultGateway() (string, string, error) {
 	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse default IPv4 gateway: %v", err)
+		return "", "", fmt.Errorf("failed to parse default IPv4 gateway: %v", err)
 	}
 	// Get Ipv4 gateway
 	for _, route := range routes {
 		// equivalent to ip route show default
 		if route.Dst == nil || route.Dst.String() == "0.0.0.0/0" || route.Dst.String() == "::/0" {
-			return route.Gw.To4().String(), nil
+			link, err := netlink.LinkByIndex(route.LinkIndex)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to get link for gateway: %v", err)
+			}
+			return route.Gw.To4().String(), link.Attrs().Name, nil
 		}
 	}
 	// Get Ipv6 gateway if noIpv4 were found
 	ipv6Routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse default IPv6 gateway: %v", err)
+		return "", "", fmt.Errorf("failed to parse default IPv6 gateway: %v", err)
 	} else {
 		for _, route := range ipv6Routes {
 			if route.Gw != nil {
-				return route.Gw.String(), nil
+				link, err := netlink.LinkByIndex(route.LinkIndex)
+				if err != nil {
+					return "", "", fmt.Errorf("failed to get link for gateway: %v", err)
+				}
+				return route.Gw.String(), link.Attrs().Name, nil
 			}
 		}
 	}
-	return "", errors.New("failed to find default gateway in the routes table")
+	return "", "", errors.New("failed to find default gateway in the routes table")
 }
 
 func GetGatewayMacAddress(gateway string) (string, error) {

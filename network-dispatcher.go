@@ -35,6 +35,8 @@ const DISPATCHER_GATEWAY_MACADDRESS = "DISPATCHER_GATEWAY_MACADDRESS"
 
 // end of supported variables
 
+var ErrDeviceNotActivated = errors.New("device not activated")
+
 type configuration struct {
 	Entities []config.Entity
 }
@@ -45,11 +47,16 @@ func main() {
 	flag.StringVar(&configFilePath, "config", getConfigFilePath(), "Path to the configuration file")
 	flag.Parse()
 
+	if err := dbusapi.Connect(); err != nil {
+		log.Fatalf("Failed to connect to DBus: %v", err)
+	}
+
 	// Make sure there are no leftovers of of the saved old gateway
 	deleteGatewayFilePathIfPresent()
 
-	// Mitigate the case when user starts service for the first time
-	//On connect event didn't run yet and there is no macaddress/gateway saved yet
+	// perform initial gateway aquire.
+	// when service starts on boot then gateway is not yet available. But it's fine because gateway is used only by disconnect hooks
+	// onConnect event updates gateway in realtime from the received config and does not rely on saveNetworkStateOnStartup
 	saveNetworkStateOnStartup()
 
 	dbusapi.MonitorNetworkCardStateChanged(
@@ -58,19 +65,44 @@ func main() {
 }
 
 func onConnected(signal *dbus.Signal) {
-	fmt.Println("Dbus network connected event")
-	gateway, err := getGatewayFromDbus(signal)
+	netCard := dbusapi.NewNetworkAdapter(signal.Path)
+	ifName, _ := netCard.GetInterfaceName()
+	if ifName == "" {
+		ifName = "unknown"
+	}
+
+	deviceType, err := netCard.GetDeviceType()
 	if err != nil {
-		log.Printf("Failed to receive gateway on wifi connected: %s\n", gateway)
+		log.Printf("Failed to get device type for %s: %v\n", ifName, err)
 		return
 	}
+	if deviceType != dbusapi.NM_DEVICE_TYPE_WIFI {
+		return
+	}
+
+	fmt.Printf("Dbus network connected event for %s\n", ifName)
+
+	gateway, err := getGatewayFromDbus(signal)
+	if err != nil {
+		if errors.Is(err, ErrDeviceNotActivated) {
+			log.Printf("Aborting gateway retrieval for %s: device not activated\n", ifName)
+			return
+		}
+		log.Printf("Failed to receive gateway for %s on connected: %v\n", ifName, err)
+		return
+	}
+	if gateway == "" {
+		log.Printf("Device %s connected but no gateway found. Skipping.\n", ifName)
+		return
+	}
+
 	gatewayEntity, err := getGatewayEntity(gateway)
 	if err != nil {
 		log.Printf("Failed to create gateway entity: %v\n", err)
 		return
 	}
 	log.Println(gatewayEntity)
-	log.Println("Wifi connected")
+	log.Printf("Wifi connected on %s\n", ifName)
 
 	saveLastConnectedGatewayToConfig(getConnectedGatewayFilePath(), gatewayEntity)
 	executeEntityScripts(config.Event{Gateway: gatewayEntity.Gateway, MacAddress: gatewayEntity.MacAddress, Event: Connected})
@@ -80,6 +112,11 @@ func onConnected(signal *dbus.Signal) {
 func getGatewayFromDbus(signal *dbus.Signal) (string, error) {
 	getGateway := func() (string, error) {
 		netCard := dbusapi.NewNetworkAdapter(signal.Path)
+
+		state, err := netCard.GetState()
+		if err == nil && state != dbusapi.NM_DEVICE_STATE_ACTIVATED {
+			return "", ErrDeviceNotActivated
+		}
 
 		// --- IPv4 ---
 		ip4, err := netCard.Ip4Config()
@@ -137,23 +174,37 @@ func getGatewayFromDbusWithRetries(gatewayFunc func() (string, error)) (string, 
 
 	for retries <= retries_count {
 		gateway, err = gatewayFunc()
-		if err != nil {
-			continue
+		if errors.Is(err, ErrDeviceNotActivated) {
+			return "", err
 		}
-		if gateway != "" {
+		if err == nil && gateway != "" {
 			fmt.Printf("Received dbus gateway %s from %d attempt\n", gateway, retries)
 			return gateway, nil
 		}
 		time.Sleep(100 * time.Millisecond)
 		retries++
 	}
-	return "", fmt.Errorf("%v in %d attempts: %v", err, retries_count, err)
+	if err == nil {
+		return "", nil
+	}
+	return "", fmt.Errorf("timeout waiting for gateway in %d attempts (last error: %v)", retries_count, err)
 }
 
 func onDisconnected(signal *dbus.Signal) {
-	fmt.Println("Dbus network disconnected event")
+	netCard := dbusapi.NewNetworkAdapter(signal.Path)
+
+	deviceType, err := netCard.GetDeviceType()
+	if err == nil && deviceType != dbusapi.NM_DEVICE_TYPE_WIFI {
+		return
+	}
+
+	ifName, _ := netCard.GetInterfaceName()
+	if ifName == "" {
+		ifName = "unknown"
+	}
+	fmt.Printf("Dbus network disconnected event for %s\n", ifName)
 	gatewayEntity := getLastConnectedGatewayFromConfig(getConnectedGatewayFilePath())
-	log.Println("Wifi disconnected")
+	log.Printf("Wifi disconnected on %s\n", ifName)
 	if gatewayEntity.MacAddress == "" {
 		log.Printf("Last active gateway macaddress is not detected %v. Gateway specific disconnect events will not run\n", gatewayEntity)
 	} else {
@@ -178,8 +229,11 @@ func deleteGatewayFilePathIfPresent() {
 	}
 }
 
+// saveNetworkStateOnStartup saves the current network to reuse it later.
+//
+// network state used in disconnect event to trigger disconnect related hooks specified in config
 func saveNetworkStateOnStartup() {
-	startupGateway, err := netlink_api.ParseDefaultGateway()
+	startupGateway, ifaceName, err := netlink_api.ParseDefaultGateway()
 	if err != nil {
 		fmt.Printf("Failed to receive gateway on startup. Gateway dependant scripts will not run: %v\n", err)
 		return
@@ -187,6 +241,19 @@ func saveNetworkStateOnStartup() {
 	if startupGateway == "" {
 		fmt.Println("Failed to receive gateway on startup. Gateway dependant scripts will not run")
 		return
+	}
+
+	if ifaceName != "" {
+		netCard, err := dbusapi.GetDeviceByInterfaceName(ifaceName)
+		if err == nil {
+			dt, err := netCard.GetDeviceType()
+			if err == nil && dt != dbusapi.NM_DEVICE_TYPE_WIFI {
+				fmt.Printf("Startup gateway found on non-wifi interface %s. Ignoring.\n", ifaceName)
+				return
+			}
+		} else {
+			fmt.Printf("Warning: Failed to get device info for interface %s: %v\n", ifaceName, err)
+		}
 	}
 
 	macAddress, err := netlink_api.GetGatewayMacAddress(startupGateway)
