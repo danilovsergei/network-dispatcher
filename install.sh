@@ -6,7 +6,7 @@ bin_dir="$1/network-dispatcher"
 bin_name="network-dispatcher"
 service_file=network-dispatcher.service
 service_file_path=$bin_dir/systemd/$service_file
-systemd_dir=$HOME/.config/systemd/user
+systemd_dir=/etc/systemd/system
 release_name="network-dispatcher.zip"
 latest_release="https://github.com/danilovsergei/network-dispatcher/releases/latest/download/$release_name"
 
@@ -50,18 +50,18 @@ echo -e "Remove TODO line from $service_file_path \n"
 sed -i '/^# TODO/d' "$service_file_path"
 
 #Install systemd service
-echo -e "Copy $service_file_path to $systemd_dir\n"
+echo -e "Copy $service_file_path to $systemd_dir. Running it with sudo \n"
 create_dir $systemd_dir
-cp -f $service_file_path "$systemd_dir/"
+sudo cp -f $service_file_path "$systemd_dir/"
 
 echo -e "Start $service_file_path service\n"
-systemctl --user enable $service_file
-systemctl --user start $service_file
+systemctl enable $service_file
+systemctl start $service_file
 
-service_status=$(systemctl --user status $service_file)
+service_status=$(systemctl status $service_file)
 if ! ( echo $service_status | grep -q "active" ); then
   echo -e "\nFailed to start $service_file\n"
-  echo "Run systemctl --user status $service_file for details"
+  echo "Run systemctl status $service_file for details"
 fi
 
 echo -e "Service $service_file started\n"
