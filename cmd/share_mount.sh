@@ -37,13 +37,32 @@ if grep -qw $MOUNT_POINT /etc/mtab; then
   do_log "mtab contains $MOUNT_POINT. Already mounted. Do nothing";
 else
   mount_dir=$(findmnt --fstab -S "$MOUNT_POINT" -n -o TARGET)
+  if [ -z "$mount_dir" ]; then
+    do_log "ERROR: Mount directory for MOUNT_POINT '$MOUNT_POINT' is not found in /etc/fstab." >&2
+    exit 1
+  fi
+  do_log "do mount of the $mount_dir"
+
+  elapsed_seconds=0
+  # exit mount retries after 30 unsuccessful attemptsu
+  max_timeout=30
+
   # match only whole word match using w to avoid substring matches
   while ! grep -qw $MOUNT_POINT "/etc/mtab"
     do
-        mount_output=$(mount $mount_dir 2>&1)
-        if [[ $? -ne 0 ]]; then
+        # Check if we exceeded the 30-second timeout threshold
+        if [ $elapsed_seconds -ge $max_timeout ]; then
+          do_log "ERROR: Mount timed out after ${max_timeout} seconds. Exiting." >&2
+          exit 1
+        fi
+
+        mount_output=$(mount "$mount_dir" 2>&1)
+        mount_status=$?
+
+        if [[ $mount_status -ne 0 ]]; then
           do_log "Retry mount $mount_dir due to error : $mount_output"
           sleep 1
+          ((elapsed_seconds++))
         fi
     done
     do_log "Mounted $MOUNT_POINT"
