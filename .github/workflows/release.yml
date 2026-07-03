@@ -1,0 +1,49 @@
+name: Generate Release Notes
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers only when you push a tag like v1.0.0
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Set up Go environment so your build.sh script can run 'go build'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable' # Or specify your exact version, e.g., '1.22'
+
+      # Create network-dispatcher.zip release binary
+      - name: Run Build Script
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      # 3. Generate Release Notes using git-cliff
+      - name: Generate Release Notes
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: .github/workflows/cliff.toml
+          args: --verbose --latest --strip header
+        env:
+          OUTPUT: release_notes.md
+
+      # 4. Create Release and attach the built zip file(s)
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: |
+            bin/network-dispatcher.zip
